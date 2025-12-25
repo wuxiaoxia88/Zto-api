@@ -1,0 +1,21 @@
+# Binaries
+*.exe
+*.exe~
+*.syso
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Private config (if any)
+config.json
+data/
+debug/
+
+# IDE files
+.vscode/
+.idea/

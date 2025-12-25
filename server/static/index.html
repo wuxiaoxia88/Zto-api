@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZTO Proxy | Control Center</title>
+    <link rel="stylesheet" href="index.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono&display=swap"
+        rel="stylesheet">
+</head>
+
+<body>
+    <div class="sidebar">
+        <div class="logo">
+            <div class="logo-box">Z</div>
+            <div style="font-weight: 700; font-size: 19px; letter-spacing: -0.5px;">ZTO Proxy</div>
+        </div>
+        <div class="nav-item active" onclick="switchTab('dashboard', this)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"></rect>
+                <rect x="14" y="3" width="7" height="7"></rect>
+                <rect x="14" y="14" width="7" height="7"></rect>
+                <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            仪表盘
+        </div>
+        <div class="nav-item" onclick="switchTab('history', this)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 20v-6M6 20V10M18 20V4"></path>
+            </svg>
+            请求日志
+        </div>
+        <div class="nav-item" onclick="switchTab('tester', this)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path
+                    d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z">
+                </path>
+            </svg>
+            API 测试
+        </div>
+        <div class="nav-item" onclick="switchTab('settings', this)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path
+                    d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                </path>
+            </svg>
+            系统设置
+        </div>
+    </div>
+
+    <div class="content">
+        <!-- Dashboard -->
+        <div id="tab-dashboard" class="section active">
+            <div class="header">
+                <div>
+                    <div style="color: var(--text-dim); font-size: 14px; margin-bottom: 4px;">ZTO API PROXY SERVICE
+                    </div>
+                    <h1>服务运行概览</h1>
+                </div>
+                <div style="display: flex; gap: 12px;">
+                    <button class="btn btn-primary" onclick="triggerRefresh()">立即刷新 Token</button>
+                    <button class="btn" onclick="apiAction('/admin/open-logs')">日志目录</button>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="card">
+                    <div class="card-label">身份验证状态</div>
+                    <div class="card-val" id="auth-status">
+                        <span class="dot" id="auth-dot"></span>
+                        <span id="auth-text">等待同步...</span>
+                    </div>
+                    <div class="card-footer" id="last-sync">同步中...</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">安全过期预测</div>
+                    <div class="card-val" style="color: var(--warning);" id="expire-val">--:--:--</div>
+                    <div class="card-footer">系统将在过期前 30min 自动刷新</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">宝盒环境检测</div>
+                    <div class="card-val" id="zbox-status">检测中...</div>
+                    <div class="card-footer" id="zbox-pid">PID: --</div>
+                </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <h2 style="font-size: 18px; font-weight: 600;">实时运行控制台</h2>
+                <span style="font-size: 12px; color: var(--text-dim);">实时滚动最新 50 条系统日志</span>
+            </div>
+            <div class="terminal" id="terminal"></div>
+        </div>
+
+        <!-- History Logs -->
+        <div id="tab-history" class="section">
+            <div class="header">
+                <h1>请求历史记录</h1>
+                <button class="btn" style="font-size: 12px; padding: 6px 16px;"
+                    onclick="apiAction('/admin/clear-logs')">清空记录</button>
+            </div>
+            <table class="logs-table">
+                <thead>
+                    <tr>
+                        <th width="15%">时间</th>
+                        <th width="10%">方法</th>
+                        <th>API 路径 (代理后)</th>
+                        <th width="10%">状态</th>
+                        <th width="12%">耗时</th>
+                    </tr>
+                </thead>
+                <tbody id="history-body"></tbody>
+            </table>
+        </div>
+
+        <!-- API Tester -->
+        <div id="tab-tester" class="section">
+            <div class="header">
+                <h1>API 测试终端</h1>
+                <div style="display: flex; gap: 10px;">
+                    <button class="btn" style="font-size: 12px; padding: 6px 14px;"
+                        onclick="document.getElementById('curl-modal').style.display='flex'">导入 cURL</button>
+                    <select id="t-presets" onchange="applyPreset()"
+                        style="background: #0b0e14; border: 1px solid var(--border); color: var(--text-dim); border-radius: 8px; padding: 0 10px; font-size: 12px;">
+                        <option value="">快速选择模版...</option>
+                        <option value="trace">预约单跟单 (SiteOrderTrace)</option>
+                        <option value="todo">待办事项汇总</option>
+                        <option value="province">字节省市区数据报表</option>
+                    </select>
+                </div>
+            </div>
+            <div class="card" style="margin-bottom: 24px;">
+                <div style="display: flex; gap: 12px; margin-bottom: 20px;">
+                    <select id="t-method"
+                        style="width: 120px; background: #0b0e14; border: 1px solid var(--border); color: white; border-radius: 10px; padding: 0 12px;">
+                        <option>GET</option>
+                        <option>POST</option>
+                    </select>
+                    <input id="t-url" type="text" placeholder="/api/query/order_trace" value="/api/query/order_trace"
+                        style="flex: 1; background: #0b0e14; border: 1px solid var(--border); color: white; border-radius: 10px; padding: 12px 16px;">
+                    <button class="btn btn-primary" style="padding: 0 32px;" onclick="execTest()">发送</button>
+                </div>
+                <div style="font-size: 13px; color: var(--text-dim); margin-bottom: 8px;">Request Payload (JSON)</div>
+                <textarea id="t-body"
+                    style="width: 100%; height: 180px; background: #0b0e14; border: 1px solid var(--border); color: #ced6e0; border-radius: 10px; padding: 12px; font-family: monospace; font-size: 13px;">{}</textarea>
+            </div>
+            <div style="font-size: 14px; margin-bottom: 12px; font-weight: 500;">Response Result:</div>
+            <pre id="t-result" class="terminal" style="height: 350px; color: #ced6e0;"></pre>
+        </div>
+
+        <!-- cURL Import Modal -->
+        <div id="curl-modal"
+            style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:1000; align-items:center; justify-content:center;">
+            <div class="card" style="width: 600px; background: #161b22;">
+                <h2 style="margin-bottom: 16px;">导入浏览器 cURL 指令</h2>
+                <p style="font-size: 12px; color: var(--text-dim); margin-bottom: 12px;">粘贴 Chrome DevTools 中 "Copy as
+                    cURL" 的内容，系统将自动解析 URL 和 JSON 载荷。</p>
+                <textarea id="curl-input" placeholder="curl 'http://...' -H '...' --data-raw '{...}'"
+                    style="width:100%; height:200px; margin-bottom:16px;"></textarea>
+                <div style="display:flex; justify-content:flex-end; gap:12px;">
+                    <button class="btn" onclick="document.getElementById('curl-modal').style.display='none'">取消</button>
+                    <button class="btn btn-primary" onclick="parseAndImportCurl()">解析并导入</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings -->
+        <div id="tab-settings" class="section">
+            <div class="header">
+                <h1>系统参数设置</h1>
+            </div>
+            <div class="card" style="max-width: 650px;">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px; margin-bottom: 32px;">
+                    <div>
+                        <label
+                            style="display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 10px;">监听端口
+                            (需重启生效)</label>
+                        <input type="number" id="s-port"
+                            style="width: 100%; background: #0b0e14; border: 1px solid var(--border); color: white; border-radius: 8px; padding: 10px 14px;">
+                    </div>
+                    <div>
+                        <label
+                            style="display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 10px;">最大重试次数</label>
+                        <input type="number" id="s-retries"
+                            style="width: 100%; background: #0b0e14; border: 1px solid var(--border); color: white; border-radius: 8px; padding: 10px 14px;">
+                    </div>
+                    <div>
+                        <label
+                            style="display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 10px;">凌晨刷新时间点</label>
+                        <input type="text" id="s-refresh"
+                            style="width: 100%; background: #0b0e14; border: 1px solid var(--border); color: white; border-radius: 8px; padding: 10px 14px;">
+                    </div>
+                    <div>
+                        <label
+                            style="display: block; font-size: 13px; color: var(--text-dim); margin-bottom: 10px;">傍晚预防刷新点</label>
+                        <input type="text" id="s-prevent"
+                            style="width: 100%; background: #0b0e14; border: 1px solid var(--border); color: white; border-radius: 8px; padding: 10px 14px;">
+                    </div>
+                </div>
+                <button class="btn btn-primary" style="width: 100%; padding: 14px;"
+                    onclick="commitSettings()">保存所有配置</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchTab(id, el) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById('tab-' + id).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            el.classList.add('active');
+            if (id === 'history') loadHistory();
+            if (id === 'settings') loadConfig();
+        }
+
+        async function updateStatus() {
+            try {
+                const res = await fetch('/status');
+                const data = await res.json();
+
+                const dot = document.getElementById('auth-dot');
+                const txt = document.getElementById('auth-text');
+                if (data.tokenValid) {
+                    dot.className = 'dot dot-success';
+                    txt.innerText = '已授权 ✓';
+                    txt.style.color = 'var(--success)';
+                } else {
+                    dot.className = 'dot dot-danger';
+                    txt.innerText = '未授权 ✗';
+                    txt.style.color = 'var(--danger)';
+                }
+
+                document.getElementById('last-sync').innerText = '最后同步: ' + fmtTime(data.lastRefresh);
+                document.getElementById('expire-val').innerText = fmtTime(data.expiresAt);
+                document.getElementById('zbox-status').innerText = data.zboxStatus || '未检测';
+                document.getElementById('zbox-pid').innerText = 'PID: ' + (data.zboxPid || '--');
+            } catch (e) { }
+        }
+
+        async function syncLogs() {
+            try {
+                const res = await fetch('/admin/recent-logs');
+                const lines = await res.json();
+                const container = document.getElementById('terminal');
+                let html = '';
+                lines.reverse().forEach(line => {
+                    const m = line.match(/\[(.*?)\] \[(.*?)\] (.*)/);
+                    if (m) {
+                        const level = m[2].toLowerCase();
+                        html += `<div class="line">
+                            <span class="t-time">${m[1]}</span>
+                            <span class="t-${level}">[${m[2]}]</span>
+                            <span>${m[3]}</span>
+                        </div>`;
+                    }
+                });
+                container.innerHTML = html;
+            } catch (e) { }
+        }
+
+        async function loadHistory() {
+            const res = await fetch('/admin/request-logs');
+            const data = await res.json();
+            let html = '';
+            data.forEach(l => {
+                const sColor = l.statusCode < 400 ? 'var(--success)' : 'var(--danger)';
+                html += `<tr>
+                    <td>${new Date(l.time).toLocaleTimeString()}</td>
+                    <td><span style="font-weight:700; color:var(--primary)">${l.method}</span></td>
+                    <td style="color:var(--text-main); font-family:monospace; font-size:12px;">${l.url}</td>
+                    <td><span style="color:${sColor}; font-weight:700;">${l.statusCode}</span></td>
+                    <td>${l.duration}ms</td>
+                </tr>`;
+            });
+            document.getElementById('history-body').innerHTML = html;
+        }
+
+        async function execTest() {
+            const m = document.getElementById('t-method').value;
+            let u = document.getElementById('t-url').value;
+            const b = document.getElementById('t-body').value;
+            const rEl = document.getElementById('t-result');
+            rEl.innerText = '> Sending request...';
+
+            let finalUrl = u;
+            let fetchOpt = { method: m };
+
+            // 智能转换与代理转发
+            if (u.startsWith('http')) {
+                let mapped = false;
+                if (u.includes('/getSiteOrderTraceList')) { finalUrl = '/api/query/order_trace'; mapped = true; }
+                else if (u.includes('/queryZjPreOrderReport')) { finalUrl = '/province-report'; mapped = true; }
+                else if (u.includes('/getTodoCenterList')) { finalUrl = '/orders/todo'; mapped = true; }
+
+                if (!mapped) {
+                    // 如果是外部 URL 且没有内置简写，则走通用透传代理 /proxy
+                    finalUrl = '/proxy';
+                    fetchOpt = {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            url: u,
+                            method: m,
+                            body: b ? JSON.parse(b) : {}
+                        })
+                    };
+                }
+            }
+
+            // 处理普通本地请求设置
+            if (finalUrl !== '/proxy' && m === 'POST') {
+                fetchOpt.body = b;
+                fetchOpt.headers = { 'Content-Type': 'application/json' };
+            }
+
+            try {
+                const r = await fetch(finalUrl, fetchOpt);
+                const text = await r.text();
+                try {
+                    const d = JSON.parse(text);
+                    rEl.innerText = JSON.stringify(d, null, 4);
+                } catch (e) {
+                    rEl.innerText = text;
+                }
+            } catch (e) {
+                rEl.innerText = 'Error: ' + e.message;
+            }
+        }
+
+        function applyPreset() {
+            const v = document.getElementById('t-presets').value;
+            const u = document.getElementById('t-url');
+            const m = document.getElementById('t-method');
+            const b = document.getElementById('t-body');
+
+            if (v === 'trace') {
+                u.value = '/api/query/order_trace';
+                m.value = 'POST';
+                b.value = JSON.stringify({
+                    "traceQueryChannel": "ALL_PICK_CHANNEL",
+                    "startTime": new Date().toISOString().split('T')[0] + " 00:00:00",
+                    "endTime": new Date().toISOString().split('T')[0] + " 23:59:59",
+                    "pageNum": 1,
+                    "pageSize": 50,
+                    "pageIndex": 1
+                }, null, 4);
+            } else if (v === 'todo') {
+                u.value = '/orders/todo';
+                m.value = 'POST';
+                b.value = JSON.stringify({ "traceQueryChannel": "ALL_PICK_CHANNEL" }, null, 4);
+            } else if (v === 'province') {
+                u.value = '/province-report';
+                m.value = 'POST';
+                b.value = JSON.stringify({
+                    "empCode": "",
+                    "complianceResult": "",
+                    "complianceResultQueryList": [],
+                    "orderServiceType": [],
+                    "startTime": new Date().toISOString().split('T')[0],
+                    "endTime": new Date().toISOString().split('T')[0],
+                    "batchList": [],
+                    "comparisonQueryCode": "",
+                    "ddzlCompare": "",
+                    "ddzlCompareType": 1,
+                    "ddzlCompareCount": null,
+                    "provinceName": "",
+                    "cityName": "",
+                    "tiktokArea": "",
+                    "streetName": "",
+                    "siteCode": "",
+                    "siteName": "",
+                    "sortType": 1,
+                    "sortField": "",
+                    "whetherPreDepart": null,
+                    "whetherNewAreaBatch": null,
+                    "queryDateRangeType": 1,
+                    "pageSize": 100,
+                    "pageIndex": 1
+                }, null, 4);
+            }
+        }
+
+        function parseAndImportCurl() {
+            const raw = document.getElementById('curl-input').value;
+            if (!raw) return;
+
+            // 解析 URL
+            const urlMatch = raw.match(/curl\s+['"]([^'"]+)['"]/i) || raw.match(/curl\s+([^\s]+)/i);
+            if (urlMatch) {
+                let url = urlMatch[1];
+                // 自动映射到代理路径
+                if (url.includes('/getSiteOrderTraceList')) document.getElementById('t-url').value = '/api/query/order_trace';
+                else if (url.includes('/queryZjPreOrderReport')) document.getElementById('t-url').value = '/province-report';
+                else if (url.includes('/getTodoCenterList')) document.getElementById('t-url').value = '/orders/todo';
+                else document.getElementById('t-url').value = url;
+            }
+
+            // 解析 Method
+            if (raw.includes('--data') || raw.includes('-d ') || raw.includes('--data-raw')) {
+                document.getElementById('t-method').value = 'POST';
+            } else {
+                document.getElementById('t-method').value = 'GET';
+            }
+
+            // 解析 Body
+            const bodyMatch = raw.match(/--data(?:-raw)?\s+['"]({.*?})['"]/is) || raw.match(/-d\s+['"]({.*?})['"]/is);
+            if (bodyMatch) {
+                try {
+                    const jsonObj = JSON.parse(bodyMatch[1]);
+                    document.getElementById('t-body').value = JSON.stringify(jsonObj, null, 4);
+                } catch (e) {
+                    document.getElementById('t-body').value = bodyMatch[1];
+                }
+            }
+
+            document.getElementById('curl-modal').style.display = 'none';
+            document.getElementById('curl-input').value = '';
+            alert('cURL 解析成功！已自动填充并映射到代理路径。');
+        }
+
+        async function loadConfig() {
+            const res = await fetch('/admin/config');
+            const c = await res.json();
+            document.getElementById('s-port').value = c.port;
+            document.getElementById('s-retries').value = c.maxRetries;
+            document.getElementById('s-refresh').value = c.refreshTime;
+            document.getElementById('s-prevent').value = c.preventTime;
+        }
+
+        async function commitSettings() {
+            const c = {
+                port: parseInt(document.getElementById('s-port').value),
+                maxRetries: parseInt(document.getElementById('s-retries').value),
+                refreshTime: document.getElementById('s-refresh').value,
+                preventTime: document.getElementById('s-prevent').value
+            };
+            const res = await fetch('/admin/save-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(c)
+            });
+            const data = await res.json();
+            alert(data.message || '配置已成功保存！');
+        }
+
+        function fmtTime(s) {
+            if (!s || s === "") return '--:--:--';
+            const d = new Date(s);
+            return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0') + ':' + d.getSeconds().toString().padStart(2, '0');
+        }
+
+        async function triggerRefresh() {
+            await fetch('/refresh', { method: 'POST' });
+            alert('刷新请求已发送，请观察控制台日志');
+        }
+
+        async function apiAction(url) {
+            await fetch(url);
+        }
+
+        setInterval(updateStatus, 3000);
+        setInterval(syncLogs, 2000);
+        updateStatus();
+        syncLogs();
+    </script>
+</body>
+
+</html>
