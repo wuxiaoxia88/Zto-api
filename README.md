@@ -61,6 +61,48 @@
 | `/orders/todo` | `POST` | 待办事项汇总 |
 | `/province-report` | `POST` | 字节省市区数据报表 |
 
+---
+
+## 🔍 调试与测试指令
+
+您可以直接使用 PowerShell 进行快速测试和服务验证：
+
+### 🩺 系统诊断
+```powershell
+# 1. 健康状态检测 (返回 ok 表示服务存活)
+Invoke-RestMethod -Uri "http://localhost:8765/health"
+
+# 2. 查看完整运行状态 (Token 有效期、宝盒 PID 等)
+Invoke-RestMethod -Uri "http://localhost:8765/status" | ConvertTo-Json
+
+# 3. 手动触发一次 Token 自动刷新流程
+Invoke-RestMethod -Method Post -Uri "http://localhost:8765/refresh"
+```
+
+### 📦 业务接口测试示例
+```powershell
+# 测试：预约单跟单查询
+$body = @{
+    traceQueryChannel = "ALL_PICK_CHANNEL"
+    startTime = "2025-12-25 00:00:00"
+    endTime = "2025-12-25 23:59:59"
+    pageNum = 1
+    pageSize = 10
+} | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri "http://localhost:8765/api/query/order_trace" -Body $body -ContentType "application/json"
+
+# 测试：字节省市区报表
+$reportPayload = @{
+    startTime = "2025-12-25"
+    endTime = "2025-12-25"
+    pageSize = 10
+    pageIndex = 1
+} | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri "http://localhost:8765/province-report" -Body $reportPayload -ContentType "application/json"
+```
+
+---
+
 ### 2. 通用透传代理 (`/proxy`)
 如果您需要调用其他中通接口，直接将请求发送至此路由：
 ```bash
