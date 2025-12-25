@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -120,7 +121,7 @@ func main() {
 
 	// 启动服务器（后台）
 	go func() {
-		if err := srv.Start(); err != nil {
+		if err := srv.Start(); err != nil && err != http.ErrServerClosed {
 			logger.Error("服务器启动失败: %v", err)
 			os.Exit(1)
 		}
