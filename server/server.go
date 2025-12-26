@@ -529,21 +529,47 @@ func (s *Server) handleRecentLogs(w http.ResponseWriter, r *http.Request) {
 	cfg := config.GetConfig()
 	logsDir := filepath.Join(cfg.DataDir, "logs")
 
-	// 这里简单实现：读取当天的日志文件最后 50 行
-	logFile := filepath.Join(logsDir, fmt.Sprintf("service_%s.log", time.Now().Format("2006-01-02")))
+	// 1. 尝试读取当天的
+	today := time.Now().Format("2006-01-02")
+	logFile := filepath.Join(logsDir, fmt.Sprintf("service_%s.log", today))
 
 	data, err := os.ReadFile(logFile)
 	if err != nil {
-		s.jsonResponse(w, []string{"[SYSTEM] 无法读取当日日志文件"})
-		return
+		// 2. 如果今天还没有日志，尝试找最新的一个文件
+		files, _ := os.ReadDir(logsDir)
+		var latestFile string
+		for i := len(files) - 1; i >= 0; i-- {
+			if !files[i].IsDir() && strings.HasPrefix(files[i].Name(), "service_") {
+				latestFile = filepath.Join(logsDir, files[i].Name())
+				break
+			}
+		}
+
+		if latestFile == "" {
+			s.jsonResponse(w, []string{"[SYSTEM] [INFO] 暂无日志记录"})
+			return
+		}
+		data, err = os.ReadFile(latestFile)
+		if err != nil {
+			s.jsonResponse(w, []string{"[SYSTEM] [ERROR] 无法读取历史日志文件"})
+			return
+		}
 	}
 
 	lines := strings.Split(string(data), "\n")
-	if len(lines) > 50 {
-		lines = lines[len(lines)-50:]
+	// 过滤空行
+	var validLines []string
+	for _, l := range lines {
+		if strings.TrimSpace(l) != "" {
+			validLines = append(validLines, l)
+		}
 	}
 
-	s.jsonResponse(w, lines)
+	if len(validLines) > 50 {
+		validLines = validLines[len(validLines)-50:]
+	}
+
+	s.jsonResponse(w, validLines)
 }
 
 // 获取请求日志记录
