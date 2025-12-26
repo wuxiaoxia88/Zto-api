@@ -299,13 +299,30 @@
                 if (!mapped) {
                     // 如果是外部 URL 且没有内置简写，则走通用透传代理 /proxy
                     finalUrl = '/proxy';
+
+                    // 智能判断 body 格式
+                    let payload = b;
+                    let contentType = 'application/json';
+
+                    if (b && !b.trim().startsWith('{') && b.includes('=')) {
+                        // 看起来像 form 数据 (key1=val1&key2=val2)
+                        contentType = 'application/x-www-form-urlencoded';
+                    } else {
+                        try {
+                            payload = b ? JSON.parse(b) : {};
+                        } catch (e) {
+                            payload = b;
+                        }
+                    }
+
                     fetchOpt = {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             url: u,
                             method: m,
-                            body: b ? JSON.parse(b) : {}
+                            body: payload,
+                            contentType: contentType
                         })
                     };
                 }
@@ -407,13 +424,18 @@
             }
 
             // 解析 Body
-            const bodyMatch = raw.match(/--data(?:-raw)?\s+['"]({.*?})['"]/is) || raw.match(/-d\s+['"]({.*?})['"]/is);
+            const bodyMatch = raw.match(/--data(?:-raw)?\s+['"](.*?)['"]/is) || raw.match(/-d\s+['"](.*?)['"]/is);
             if (bodyMatch) {
-                try {
-                    const jsonObj = JSON.parse(bodyMatch[1]);
-                    document.getElementById('t-body').value = JSON.stringify(jsonObj, null, 4);
-                } catch (e) {
-                    document.getElementById('t-body').value = bodyMatch[1];
+                const bodyContent = bodyMatch[1];
+                if (bodyContent.trim().startsWith('{')) {
+                    try {
+                        const jsonObj = JSON.parse(bodyContent);
+                        document.getElementById('t-body').value = JSON.stringify(jsonObj, null, 4);
+                    } catch (e) {
+                        document.getElementById('t-body').value = bodyContent;
+                    }
+                } else {
+                    document.getElementById('t-body').value = bodyContent;
                 }
             }
 

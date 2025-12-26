@@ -14,10 +14,11 @@ import (
 
 // ProxyRequest 代理请求结构
 type ProxyRequest struct {
-	URL     string            `json:"url"`
-	Method  string            `json:"method"`
-	Headers map[string]string `json:"headers"`
-	Body    interface{}       `json:"body"`
+	URL         string            `json:"url"`
+	Method      string            `json:"method"`
+	Headers     map[string]string `json:"headers"`
+	Body        interface{}       `json:"body"`
+	ContentType string            `json:"contentType"`
 }
 
 // ProxyResponse 代理响应结构
@@ -103,11 +104,16 @@ func (c *Client) doSingleRequest(req *ProxyRequest) (*ProxyResponse, error) {
 	// 序列化请求体
 	var bodyReader io.Reader
 	if req.Body != nil {
-		bodyBytes, err := json.Marshal(req.Body)
-		if err != nil {
-			return nil, fmt.Errorf("序列化请求体失败: %w", err)
+		switch v := req.Body.(type) {
+		case string:
+			bodyReader = bytes.NewReader([]byte(v))
+		default:
+			bodyBytes, err := json.Marshal(req.Body)
+			if err != nil {
+				return nil, fmt.Errorf("序列化请求体失败: %w", err)
+			}
+			bodyReader = bytes.NewReader(bodyBytes)
 		}
-		bodyReader = bytes.NewReader(bodyBytes)
 	}
 
 	// 创建 HTTP 请求
@@ -122,7 +128,15 @@ func (c *Client) doSingleRequest(req *ProxyRequest) (*ProxyResponse, error) {
 	}
 
 	// 设置默认 headers
-	httpReq.Header.Set("Content-Type", "application/json")
+	ct := "application/json"
+	if req.ContentType != "" {
+		ct = req.ContentType
+	} else if req.Headers != nil && req.Headers["Content-Type"] != "" {
+		ct = req.Headers["Content-Type"]
+	} else if req.Headers != nil && req.Headers["content-type"] != "" {
+		ct = req.Headers["content-type"]
+	}
+	httpReq.Header.Set("Content-Type", ct)
 	httpReq.Header.Set("Accept", "application/json, text/plain, */*")
 	httpReq.Header.Set("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
 	httpReq.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36")
