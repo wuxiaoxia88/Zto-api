@@ -70,9 +70,9 @@ func (c *Client) DoRequest(req *ProxyRequest) *ProxyResponse {
 			return resp
 		}
 
-		// 如果是 401/403，尝试刷新 Token
-		if resp != nil && (resp.StatusCode == 401 || resp.StatusCode == 403) {
-			logger.Token("检测到认证失败 (%d)，尝试刷新 Token", resp.StatusCode)
+		// 如果是 401/403 或 301（重定向到登录），尝试刷新 Token
+		if resp != nil && (resp.StatusCode == 401 || resp.StatusCode == 403 || resp.StatusCode == 301) {
+			logger.Token("检测到认证失败或重定向 (%d)，尝试刷新 Token", resp.StatusCode)
 			if c.onNeedRefresh != nil {
 				if err := c.onNeedRefresh(); err != nil {
 					logger.Error("Token 刷新失败: %v", err)

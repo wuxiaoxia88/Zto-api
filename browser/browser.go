@@ -2,6 +2,8 @@ package browser
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -107,12 +109,7 @@ func (b *Browser) RefreshToken() error {
 		if strings.Contains(cookie.Domain, "zt-express.com") {
 			tokenData.Cookies[cookie.Name] = cookie.Value
 			if cookie.Name == "wyandyy" {
-				now := time.Now()
-				expireTime := time.Date(now.Year(), now.Month(), now.Day(), 20, 0, 0, 0, now.Location())
-				if now.After(expireTime) {
-					expireTime = expireTime.Add(24 * time.Hour)
-				}
-				tokenData.ExpiresAt = expireTime
+				tokenData.ExpiresAt = extractExpireTime(cookie.Value)
 			}
 		}
 	}
@@ -222,6 +219,34 @@ func (b *Browser) isZBoxRunning() bool {
 		}
 	}
 	return false
+}
+
+func extractExpireTime(jwtStr string) time.Time {
+	// 默认 20:00 (兜底)
+	now := time.Now()
+	defaultExp := time.Date(now.Year(), now.Month(), now.Day(), 20, 0, 0, 0, now.Location())
+	if now.After(defaultExp) {
+		defaultExp = defaultExp.Add(24 * time.Hour)
+	}
+
+	parts := strings.Split(jwtStr, ".")
+	if len(parts) < 2 {
+		return defaultExp
+	}
+
+	payload, err := base64.RawStdEncoding.DecodeString(parts[1])
+	if err != nil {
+		return defaultExp
+	}
+
+	var data struct {
+		Exp int64 `json:"exp"`
+	}
+	if err := json.Unmarshal(payload, &data); err != nil || data.Exp == 0 {
+		return defaultExp
+	}
+
+	return time.Unix(data.Exp, 0)
 }
 
 func truncateString(s string, n int) string {
