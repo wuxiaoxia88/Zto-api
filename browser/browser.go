@@ -109,9 +109,17 @@ func (b *Browser) RefreshToken() error {
 		if strings.Contains(cookie.Domain, "zt-express.com") {
 			tokenData.Cookies[cookie.Name] = cookie.Value
 			if cookie.Name == "wyandyy" {
-				tokenData.ExpiresAt = extractExpireTime(cookie.Value)
+				tokenData.AppExpire = extractExpireTime(cookie.Value, 10)
+			} else if cookie.Name == "wyzdzjxhdnh" {
+				tokenData.SessExpire = extractExpireTime(cookie.Value, 14*24)
 			}
 		}
+	}
+
+	// 综合失效时间取最早的
+	tokenData.ExpiresAt = tokenData.AppExpire
+	if !tokenData.SessExpire.IsZero() && (tokenData.ExpiresAt.IsZero() || tokenData.SessExpire.Before(tokenData.ExpiresAt)) {
+		tokenData.ExpiresAt = tokenData.SessExpire
 	}
 
 	if _, ok := tokenData.Cookies["wyzdzjxhdnh"]; !ok {
@@ -221,13 +229,10 @@ func (b *Browser) isZBoxRunning() bool {
 	return false
 }
 
-func extractExpireTime(jwtStr string) time.Time {
-	// 默认 20:00 (兜底)
+func extractExpireTime(jwtStr string, defaultHours int) time.Time {
+	// 默认过期时间 (兜底)
 	now := time.Now()
-	defaultExp := time.Date(now.Year(), now.Month(), now.Day(), 20, 0, 0, 0, now.Location())
-	if now.After(defaultExp) {
-		defaultExp = defaultExp.Add(24 * time.Hour)
-	}
+	defaultExp := now.Add(time.Duration(defaultHours) * time.Hour)
 
 	parts := strings.Split(jwtStr, ".")
 	if len(parts) < 2 {

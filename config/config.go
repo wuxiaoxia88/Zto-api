@@ -25,7 +25,9 @@ type Config struct {
 type TokenData struct {
 	Cookies     map[string]string `json:"cookies"`
 	LastRefresh time.Time         `json:"lastRefresh"`
-	ExpiresAt   time.Time         `json:"expiresAt"`
+	ExpiresAt   time.Time         `json:"expiresAt"`  // 综合失效时间 (最早的那个)
+	AppExpire   time.Time         `json:"appExpire"`  // wyandyy 失效时间 (10h)
+	SessExpire  time.Time         `json:"sessExpire"` // wyzdzjxhdnh 失效时间 (14d)
 }
 
 var (

@@ -415,10 +415,12 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	s.zboxLock.Unlock()
 
 	status := map[string]interface{}{
-		"service":     "running",
+		"service":     "active",
 		"port":        cfg.Port,
 		"tokenValid":  config.IsTokenValid(),
 		"expiresAt":   "",
+		"appExpire":   "",
+		"sessExpire":  "",
 		"lastRefresh": "",
 		"lastFetch":   "",
 		"zboxStatus":  zboxStatus,
@@ -432,6 +434,12 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	if token != nil {
 		if !token.ExpiresAt.IsZero() {
 			status["expiresAt"] = token.ExpiresAt.Format(time.RFC3339)
+		}
+		if !token.AppExpire.IsZero() {
+			status["appExpire"] = token.AppExpire.Format(time.RFC3339)
+		}
+		if !token.SessExpire.IsZero() {
+			status["sessExpire"] = token.SessExpire.Format(time.RFC3339)
 		}
 		if !token.LastRefresh.IsZero() {
 			status["lastRefresh"] = token.LastRefresh.Format(time.RFC3339)
