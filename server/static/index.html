@@ -158,9 +158,20 @@
                         style="flex: 1; background: #0b0e14; border: 1px solid var(--border); color: white; border-radius: 10px; padding: 12px 16px;">
                     <button class="btn btn-primary" style="padding: 0 32px;" onclick="execTest()">发送</button>
                 </div>
-                <div style="font-size: 13px; color: var(--text-dim); margin-bottom: 8px;">Request Payload (JSON)</div>
-                <textarea id="t-body"
-                    style="width: 100%; height: 180px; background: #0b0e14; border: 1px solid var(--border); color: #ced6e0; border-radius: 10px; padding: 12px; font-family: monospace; font-size: 13px;">{}</textarea>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                    <div>
+                        <div style="font-size: 13px; color: var(--text-dim); margin-bottom: 8px;">Custom Headers (JSON)
+                        </div>
+                        <textarea id="t-headers" placeholder='{ "siteinfo": "...", "x-zop-ns": "..." }'
+                            style="width: 100%; height: 180px; background: #0b0e14; border: 1px solid var(--border); color: #ced6e0; border-radius: 10px; padding: 12px; font-family: monospace; font-size: 13px;">{}</textarea>
+                    </div>
+                    <div>
+                        <div style="font-size: 13px; color: var(--text-dim); margin-bottom: 8px;">Request Payload (JSON)
+                        </div>
+                        <textarea id="t-body"
+                            style="width: 100%; height: 180px; background: #0b0e14; border: 1px solid var(--border); color: #ced6e0; border-radius: 10px; padding: 12px; font-family: monospace; font-size: 13px;">{}</textarea>
+                    </div>
+                </div>
             </div>
             <div style="font-size: 14px; margin-bottom: 12px; font-weight: 500;">Response Result:</div>
             <pre id="t-result" class="terminal" style="height: 350px; color: #ced6e0;"></pre>
@@ -316,6 +327,15 @@
             let finalUrl = u;
             let fetchOpt = { method: m };
 
+            const h = document.getElementById('t-headers').value;
+            let headersObj = {};
+            try {
+                headersObj = h ? JSON.parse(h) : {};
+            } catch (e) {
+                rEl.innerText = 'Header JSON 格式错误: ' + e.message;
+                return;
+            }
+
             // 智能转换与代理转发
             if (u.startsWith('http')) {
                 let mapped = false;
@@ -324,15 +344,12 @@
                 else if (u.includes('/getTodoCenterList')) { finalUrl = '/orders/todo'; mapped = true; }
 
                 if (!mapped) {
-                    // 如果是外部 URL 且没有内置简写，则走通用透传代理 /proxy
                     finalUrl = '/proxy';
 
-                    // 智能判断 body 格式
                     let payload = b;
-                    let contentType = 'application/json';
+                    let contentType = headersObj['Content-Type'] || headersObj['content-type'] || 'application/json';
 
-                    if (b && !b.trim().startsWith('{') && b.includes('=')) {
-                        // 看起来像 form 数据 (key1=val1&key2=val2)
+                    if (!contentType.includes('json') && b && !b.trim().startsWith('{') && b.includes('=')) {
                         contentType = 'application/x-www-form-urlencoded';
                     } else {
                         try {
@@ -349,6 +366,7 @@
                             url: u,
                             method: m,
                             body: payload,
+                            headers: headersObj,
                             contentType: contentType
                         })
                     };
@@ -432,43 +450,77 @@
             const raw = document.getElementById('curl-input').value;
             if (!raw) return;
 
-            // 解析 URL
-            const urlMatch = raw.match(/curl\s+['"]([^'"]+)['"]/i) || raw.match(/curl\s+([^\s]+)/i);
+            // 1. 解析 URL
+            const urlMatch = raw.match(/curl\s+['"]([^'"]+)['"]/i) || raw.match(/curl\s+([^\s\x27\x22]+)/i);
             if (urlMatch) {
                 let url = urlMatch[1];
-                // 自动映射到代理路径
                 if (url.includes('/getSiteOrderTraceList')) document.getElementById('t-url').value = '/api/query/order_trace';
                 else if (url.includes('/queryZjPreOrderReport')) document.getElementById('t-url').value = '/province-report';
                 else if (url.includes('/getTodoCenterList')) document.getElementById('t-url').value = '/orders/todo';
                 else document.getElementById('t-url').value = url;
             }
 
-            // 解析 Method
+            // 2. 解析 Method
             if (raw.includes('--data') || raw.includes('-d ') || raw.includes('--data-raw')) {
                 document.getElementById('t-method').value = 'POST';
             } else {
                 document.getElementById('t-method').value = 'GET';
             }
 
-            // 解析 Body
-            const bodyMatch = raw.match(/--data(?:-raw)?\s+['"](.*?)['"]/is) || raw.match(/-d\s+['"](.*?)['"]/is);
-            if (bodyMatch) {
-                const bodyContent = bodyMatch[1];
-                if (bodyContent.trim().startsWith('{')) {
-                    try {
-                        const jsonObj = JSON.parse(bodyContent);
-                        document.getElementById('t-body').value = JSON.stringify(jsonObj, null, 4);
-                    } catch (e) {
-                        document.getElementById('t-body').value = bodyContent;
+            // 3. 解析 Headers
+            const headers = {};
+            // 匹配所有 -H 或 --header，考虑单引号、双引号、以及无引号
+            const headerRegex = /(?:-H|--header)\s+(['"])(.*?)\1/gi;
+            let hMatch;
+            while ((hMatch = headerRegex.exec(raw)) !== null) {
+                const parts = hMatch[2].split(':');
+                if (parts.length >= 2) {
+                    const key = parts[0].trim();
+                    const val = parts.slice(1).join(':').trim();
+                    // 过滤掉基础 header，只保留业务关键 header
+                    const skip = ['Cookie', 'User-Agent', 'Host', 'Origin', 'Referer', 'Accept-Encoding', 'Connection', 'Accept-Language'];
+                    if (!skip.some(s => s.toLowerCase() === key.toLowerCase())) {
+                        headers[key] = val;
                     }
-                } else {
-                    document.getElementById('t-body').value = bodyContent;
                 }
+            }
+            document.getElementById('t-headers').value = JSON.stringify(headers, null, 4);
+
+            // 4. 解析 Body
+            // 提高正则鲁棒性：匹配 --data-raw 后面被单引号或双引号包裹的内容，支持跨行
+            const bodyPatterns = [
+                /--data-raw\s+(['"])([\s\S]*?)\1/i,
+                /--data\s+(['"])([\s\S]*?)\1/i,
+                /-d\s+(['"])([\s\S]*?)\1/i
+            ];
+
+            let foundBody = false;
+            for (const p of bodyPatterns) {
+                const bMatch = raw.match(p);
+                if (bMatch) {
+                    const content = bMatch[2];
+                    if (content.trim().startsWith('{')) {
+                        try {
+                            const jsonObj = JSON.parse(content);
+                            document.getElementById('t-body').value = JSON.stringify(jsonObj, null, 4);
+                        } catch (e) {
+                            document.getElementById('t-body').value = content;
+                        }
+                    } else {
+                        document.getElementById('t-body').value = content;
+                    }
+                    foundBody = true;
+                    break;
+                }
+            }
+
+            if (!foundBody) {
+                document.getElementById('t-body').value = '{}';
             }
 
             document.getElementById('curl-modal').style.display = 'none';
             document.getElementById('curl-input').value = '';
-            alert('cURL 解析成功！已自动填充并映射到代理路径。');
+            alert('cURL 解析成功！已自动填充并映射关键业务 Headers。');
         }
 
         async function loadConfig() {
