@@ -12,19 +12,19 @@
 
 ### 🎨 极简控制中心 (Web GUI)
 内置现代化的暗黑风格控制面板，基于原生 HTML/CSS/JS 构建，无外部依赖，极速响应。
-- **实时仪表盘**：一目了然的授权状态、Token 过期预测、宝盒 (ZBox) 环境检测。
-- **实时控制台**：动态滚动系统运行日志，随时掌握后端自动化逻辑。
+- **双 Token 精确追踪**：同时解析并展示 `wyandyy` (应用授权, 10h) 与 `wyzdzjxhdnh` (会话授权, 14d) 的精确失效时间。
+- **自愈式运行控制台**：动态滚动系统日志，支持跨天日志自动回溯，确保监控不留白。
 - **智能 API 测试终端**：
-    - **cURL 智能解析**：直接粘贴浏览器复制的 cURL 命令，系统自动提取 URL、Method 和 JSON 载荷，并智能映射到代理路径。
-    - **内置业务模版**：预设“预约单跟单”、“字节省市区报表”等常用业务指令，一键填充。
+    - **增强型 cURL 解析**：支持解析复杂、多行的浏览器 cURL 命令，**自动提取所有业务 Headers** 及 Body 载荷。
+    - **自定义 Headers 支持**：新增专用 Headers 编辑区，支持 `siteinfo` 等关键业务头部的动态透传。
     - **跨域透传代理**：内置 `/proxy` 接口，自动通过后端中转远程 API，彻底规避浏览器 CORS 限制。
 
 ### 🤖 自动化 Token 体系
 - **无人值守刷新**：基于 Playwright 自动化引擎，模拟真实浏览器行为进行一键登录。
-- **智能调度策略**：
-    - 每日 `00:05` 定时更新。
-    - 每日 `19:30` 预防性刷新（对抗官方 20:00 的过期机制）。
-    - 失败自动重试，确保 24/7 服务可用。
+- **智能预刷新策略**：
+    - **动态过期监测**：每分钟自检 Token 状态，在**任意 Token** 即将过期前 30 分钟自动静默刷新。
+    - **常规维护刷新**：每日 `00:05` 强制同步最新状态。
+    - **失败自动重试**，确保 24/7 服务可用。
 
 ### 🖥️ Windows 原生体验
 - **精美视觉识别**：全画幅自定义“Z”标识图标，完美融入 Windows 任务栏。
@@ -90,29 +90,24 @@ $body = @{
     pageSize = 10
 } | ConvertTo-Json
 Invoke-RestMethod -Method Post -Uri "http://localhost:8765/api/query/order_trace" -Body $body -ContentType "application/json"
-
-# 测试：字节省市区报表
-$reportPayload = @{
-    startTime = "2025-12-25"
-    endTime = "2025-12-25"
-    pageSize = 10
-    pageIndex = 1
-} | ConvertTo-Json
-Invoke-RestMethod -Method Post -Uri "http://localhost:8765/province-report" -Body $reportPayload -ContentType "application/json"
 ```
 
 ---
 
 ### 2. 通用透传代理 (`/proxy`)
-如果您需要调用其他中通接口，直接将请求发送至此路由：
+如果您需要调用其他中通接口（如账单、网点明细等），直接将请求发送至此路由。支持全量透传 Headers：
 ```bash
 POST http://localhost:8765/proxy
 Content-Type: application/json
 
 {
-  "url": "https://szapi.zt-express.com/siteJournal/...",
+  "url": "https://szapi.zt-express.com/send-bills/...",
   "method": "POST",
-  "body": { ... }
+  "headers": {
+    "siteinfo": "eyJzaXRlQ29kZSI6IjUxMjA4Iiw... ",
+    "x-zop-ns": "shenzhou-"
+  },
+  "body": { "pageSize": 100, "dateType": 1 }
 }
 ```
 
@@ -133,12 +128,12 @@ go build -ldflags="-s -w -H windowsgui" -o "ZTO_API_Proxy.exe" .
 
 ### 项目结构
 ```text
-├── browser/    # 自动化浏览器交互 (Playwright)
-├── server/     # 嵌入式控制中心与路由处理
+├── browser/    # 自动化浏览器交互 (Chromedp)
+├── server/     # 嵌入式控制中心 (Vanilla HTML/JS)
 ├── tray/       # 系统托盘交互逻辑
-├── proxy/      # 核心 HTTP 请求引擎
-├── config/     # 配置持久化 (%APPDATA%)
-└── scheduler/  # 自动化任务调度
+├── proxy/      # 核心 HTTP 透传引擎 (支持 Headers 解析)
+├── config/     # 配置持久化与 Token 解析 (JWT Sync)
+└── scheduler/  # 智能预刷新任务调度
 ```
 
 ---
